@@ -4,6 +4,17 @@
 
 <!-- 每个任务通过全部必要验证后，在本行下方追加一条 -->
 
+## 2026-07-25 · 归档 MetaWorld Assembly 实验结论与资源账本
+
+- 新增 [`docs/experiment-report.md`](experiment-report.md)，以 W&B 与本机控制台日志
+  双重核对 smoke、short 和 4,000-step full；明确 batch 64 的 short 虽在 W&B 标为
+  ``finished``，但首次 BC update 已在本机以 JAX contracting-dimension 错误失败。
+- batch 16 的 4,000-step full 已完成，最终 5-episode eval 为 4/5；W&B runtime
+  为 53 分 33 秒，监测两张 GPU 的峰值显存分别为 72.5 / 72.2 GiB，近似 1.79
+  GPU·小时。
+- 换机复现应按 2 张每卡至少 80 GiB 显存 GPU 预留，并使用 batch 16 的 smoke →
+  100-step short → full 顺序；没有将单 seed、5-episode 结果外推为 MetaWorld 总体性能。
+
 ## 2026-07-21 · 依赖安装与最小复现实验
 
 - 状态：已验证当前阶段。
