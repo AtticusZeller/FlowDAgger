@@ -1,5 +1,7 @@
 # 实验报告：FlowDAgger π0.5 · MetaWorld Assembly
 
+> 历史来源：后续跨方法汇总以私有 `AtticusZeller/vla-post-train` 工作区为准；本文保留为原始实验记录。
+>
 > 本报告归档本机在 MetaWorld ``assembly-v3`` 上完成的 FlowDAgger 验证和全量运行。
 > 结论以 W&B 记录和 `/mnt/data/atticux/FlowDAgger/runs/` 的控制台日志共同判定；
 > W&B 的 `finished` 状态不覆盖本机 traceback。
