@@ -4,6 +4,20 @@
 
 <!-- 每个任务通过全部必要验证后，在本行下方追加一条 -->
 
+## 2026-07-30 · 完成 MetaWorld-12 原生训练与高清证据支持
+
+- 注册 Assembly、Bin Picking、Box Close、Coffee Pull、Dial Turn、Door Lock、
+  Hammer、Hand Insert、Lever Pull、Pick Place、Soccer、Stick Push 及对应 scripted
+  policies。
+- 新增 12-task expert probe；固定 seed 预检中每个任务均为 5/5 成功。
+- 训练成功后写出 `flowdagger_result.json`，包含 base/final/Δ success rate、逐评估点
+  记录、训练计数、W&B URL 和视频元数据；logger 显式结束 W&B run。
+- 修复 `max_steps` off-by-one，并让训练循环返回实际完成计数。
+- 新增独立视频 renderer；策略观察仍为 `corner3`，视频使用 `corner`、640×480、
+  30 FPS。Assembly 1-step smoke 的前后两段视频均为 300 帧并通过用户验收。
+- 验证通过：3 个 method pytest、模块 compileall、12-task expert probe 和父工作区
+  端到端 smoke。用户完成 Explain Diff 5/5。
+
 ## 2026-07-25 · 归档 MetaWorld Assembly 实验结论与资源账本
 
 - 新增 [`docs/experiment-report.md`](experiment-report.md)，以 W&B 与本机控制台日志

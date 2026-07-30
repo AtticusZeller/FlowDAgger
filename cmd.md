@@ -6,15 +6,17 @@
 
 ### 当前可复现实验
 
-当前代码库没有 `dev.sh`、YAML 实验配置或 sweep 脚本。可由代码确认的官方组合只有：
+当前代码库没有 `dev.sh` 或 method 内 YAML sweep；跨任务配置与汇总由父
+`vla-post-train` 工作区管理。原生入口当前注册论文 MetaWorld-12 任务：
 
 - 环境：`metaworld`。
-- 任务：`metaworld_assembly`，对应 MetaWorld V3 `assembly-v3`。
+- 任务：Assembly、Bin Picking、Box Close、Coffee Pull、Dial Turn、Door Lock、
+  Hammer、Hand Insert、Lever Pull、Pick Place、Soccer、Stick Push。
 - 基础策略：`pi05`，对应 openpi 配置 `pi05_metaworld`。
 - 默认算法路径：启用 scripted expert intervention，`beta_decay`，`perstep_fp` 噪声反演。
 - 权重：首次运行自动从 Hugging Face 下载 `mmurray-ms/pi05-metaworld`；也可以用 `METAWORLD_CHECKPOINT` 或 `--openpi_checkpoint` 指向本地 checkpoint。
 
-代码还暴露了以下可运行的 ablation 轴，但它们不是仓库提供的官方实验 sweep：
+代码还暴露了以下可运行的 ablation 轴，但它们不是 method 仓库提供的实验 sweep：
 
 - `--use_interventions 0`：不启用专家接管，可作为 base-policy/无 intervention 对照。
 - `--intervention_mode beta_decay|disagreement`：两种接管触发方式。

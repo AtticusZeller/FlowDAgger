@@ -4,6 +4,16 @@
 
 <!-- 新 bug 追加到本行下方 -->
 
+## 2026-07-30 · 录像复用策略预处理帧导致低清俯视证据
+
+- 触发：评估把 `obs_to_img()` 的 128×128 steering 输入直接写入视频，并沿用
+  `corner3` 策略机位。
+- 现象：视频分辨率低且偏俯视，无法清楚判断机械臂与目标物的交互。
+- 处理：MetaWorld adapter 新增共享同一 model/data 的独立 MuJoCo renderer；
+  策略输入保持不变，视频单独使用 `corner`、640×480、30 FPS。只为配置要求的
+  episode 执行高清渲染，避免改变 25-episode 评估统计口径。
+- 原因：模型输入证据与人类视觉证据用途不同，不应共享经过网络预处理的帧。
+
 ## 2026-07-21 · JAX BC update 的 contracting dimension 错误
 
 - 触发：当前 DSW 环境安装 JAX `0.8.0` 后，FlowDAgger short 配置首次 BC update 使用 `bc_batch_size=64`。

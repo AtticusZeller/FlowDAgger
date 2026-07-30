@@ -18,6 +18,17 @@ from shared.experts.base_expert import BaseExpert
 # To add a task, add an ``env_id -> policy class`` entry.
 _POLICY_BY_ENV = {
     "assembly-v3": "SawyerAssemblyV3Policy",
+    "bin-picking-v3": "SawyerBinPickingV3Policy",
+    "box-close-v3": "SawyerBoxCloseV3Policy",
+    "coffee-pull-v3": "SawyerCoffeePullV3Policy",
+    "dial-turn-v3": "SawyerDialTurnV3Policy",
+    "door-lock-v3": "SawyerDoorLockV3Policy",
+    "hammer-v3": "SawyerHammerV3Policy",
+    "hand-insert-v3": "SawyerHandInsertV3Policy",
+    "lever-pull-v3": "SawyerLeverPullV3Policy",
+    "pick-place-v3": "SawyerPickPlaceV3Policy",
+    "soccer-v3": "SawyerSoccerV3Policy",
+    "stick-push-v3": "SawyerStickPushV3Policy",
 }
 
 

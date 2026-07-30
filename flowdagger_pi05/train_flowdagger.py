@@ -7,6 +7,7 @@ the policy stalls; its executed actions are inverted to noise space (the space
 the actor predicts) and become the BC targets. See README.md for details.
 """
 import argparse
+import json
 import os
 import pathlib
 import sys
@@ -131,12 +132,20 @@ def main(variant):
         seed=variant.seed,
         camera_name=task_cfg.get("camera_name", "corner3"),
         resolution=task_cfg.get("resolution", 256),
+        video_camera_name=task_cfg.get("video_camera_name", "corner"),
+        video_width=task_cfg.get("video_width", 640),
+        video_height=task_cfg.get("video_height", 480),
+        video_rotate_180=task_cfg.get("video_rotate_180", True),
     )
     eval_env = MetaworldPi05Adapter(
         env_name=task_cfg["env_id"],
         seed=variant.seed + 1000,
         camera_name=task_cfg.get("camera_name", "corner3"),
         resolution=task_cfg.get("resolution", 256),
+        video_camera_name=task_cfg.get("video_camera_name", "corner"),
+        video_width=task_cfg.get("video_width", 640),
+        video_height=task_cfg.get("video_height", 480),
+        video_rotate_180=task_cfg.get("video_rotate_180", True),
     )
     init_states = None
     variant.task_description = task_cfg["prompt"]
@@ -341,7 +350,7 @@ def main(variant):
         print(f"[Eval-only] Done on task_key={variant.task_key}")
         return
 
-    flowdagger_training_loop(
+    training_result = flowdagger_training_loop(
         variant, agent, env, eval_env, replay_buffer, wandb_logger,
         shard_fn=shard_fn, agent_dp=agent_dp,
         intervention_handler=intervention_handler,
@@ -349,6 +358,59 @@ def main(variant):
         raw_model=raw_model,
         autonomous_buffer=autonomous_buffer,
     )
+
+    eval_results_path = pathlib.Path(outputdir) / "eval_results.jsonl"
+    evaluations = []
+    if eval_results_path.is_file():
+        evaluations = [
+            json.loads(line)
+            for line in eval_results_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+    base_eval = evaluations[0] if evaluations else {}
+    final_eval = evaluations[-1] if evaluations else {}
+    base_success = base_eval.get("success_rate")
+    final_success = final_eval.get("success_rate")
+    delta_success = (
+        float(final_success) - float(base_success)
+        if base_success is not None and final_success is not None
+        else None
+    )
+    primary_metrics = []
+    for name, value in (
+        ("base_success_rate", base_success),
+        ("final_success_rate", final_success),
+        ("delta_success_rate", delta_success),
+    ):
+        if value is not None:
+            primary_metrics.append(
+                {"name": name, "value": float(value), "episodes": variant.eval_episodes}
+            )
+    result = {
+        "schema_version": 1,
+        "task_key": task_key,
+        "task_name": task_cfg["name"],
+        "seed": variant.seed,
+        "output_directory": outputdir,
+        "wandb_run_url": wandb_logger.run_url,
+        "primary_metrics": primary_metrics,
+        "evaluations": evaluations,
+        "training": training_result,
+        "video_directory": str(pathlib.Path(outputdir) / "videos"),
+        "video": {
+            "camera_name": task_cfg.get("video_camera_name", "corner"),
+            "width": task_cfg.get("video_width", 640),
+            "height": task_cfg.get("video_height", 480),
+            "fps": variant.eval_video_fps,
+        },
+    }
+    result_path = pathlib.Path(exp_root) / "flowdagger_result.json"
+    result_path.write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    print(f"Wrote structured result: {result_path}")
+    wandb_logger.finish()
 
 
 def build_parser():
@@ -469,6 +531,18 @@ def build_parser():
     parser.add_argument('--reward_takeover_penalty', default=0.0, type=float)
     parser.add_argument('--reward_expert_bonus', default=0.0, type=float)
     parser.add_argument('--save_eval_video', default=1, type=int, help='Log eval videos to wandb (0/1)')
+    parser.add_argument(
+        '--eval_video_episodes',
+        default=-1,
+        type=int,
+        help='Save the first N eval episodes at each checkpoint (-1 = all).',
+    )
+    parser.add_argument(
+        '--eval_video_fps',
+        default=30,
+        type=int,
+        help='Playback frame rate for local and W&B evaluation videos.',
+    )
     return parser
 
 

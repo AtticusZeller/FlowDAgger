@@ -3,6 +3,19 @@
 > 用户和 agent 共同维护的当前计划。最新的在最上面。
 
 <!-- 新条目追加到本行下方，保持最新在最上 -->
+## 2026-07-30 · MetaWorld-12 独立 steering-policy 扩展
+
+- 任务 registry 与 scripted-expert 映射已扩展到论文 12 tasks；prompt 与 MT50
+  元数据一致。
+- `train_flowdagger.py` 现在输出结构化结果，训练循环返回实际步数/轨迹数，并修复
+  `max_steps` 多执行一步的边界。
+- 评估录像与策略观察解耦：π0.5 保持 `corner3`，录像使用独立 `corner` renderer，
+  640×480、30 FPS；仅录指定 episode。
+- 父工作区负责 12 tasks × 3 seeds 的 YAML、运行证据与 suite 聚合；本 method
+  只维护原生训练机制。
+- 12 个 expert 已通过固定 seed 5/5 预检，Assembly 端到端 smoke 已完成并通过用户
+  视频验收。正式 suite 等父工作区提交并推送后启动。
+
 ## 2026-07-21 · FlowDAgger 复现实验准备
 
 - 目标：先安装 Python 3.11 依赖，验证 GPU/MetaWorld/openpi/checkpoint 链路，再按 smoke → short → default 顺序运行实验。

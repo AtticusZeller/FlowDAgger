@@ -145,6 +145,7 @@ def flowdagger_training_loop(
     total_env_steps = 0
     i = 0
     episode_count = 0
+    last_update_info = {}
     seed_expert_episodes = variant.get('seed_expert_episodes', 0)
 
     # Sliding window of (had_intervention, succeeded) per rollout, for logging
@@ -213,7 +214,7 @@ def flowdagger_training_loop(
     }, step=0)
 
     with tqdm(total=variant.max_steps, initial=0, desc='FlowDAgger') as pbar:
-        while i <= variant.max_steps:
+        while i < variant.max_steps:
             # --- Collect episode ---
             traj = collect_traj(
                 variant, steering_policy, env, i, agent_dp,
@@ -302,6 +303,7 @@ def flowdagger_training_loop(
                 for _ in range(bc_steps_per_episode):
                     batch = next(replay_iterator)
                     info = steering_policy.update(batch)
+                    last_update_info = info
                     pbar.update()
                     i += 1
 
@@ -360,5 +362,15 @@ def flowdagger_training_loop(
                             variant.outputdir, i, variant.checkpoint_interval
                         )
 
-                    if i > variant.max_steps:
+                    if i >= variant.max_steps:
                         break
+
+    final_info = {
+        key: float(jax.device_get(value)) for key, value in last_update_info.items()
+    }
+    return {
+        'completed_bc_steps': i,
+        'episodes': episode_count,
+        'environment_steps': total_env_steps,
+        'final_update': final_info,
+    }

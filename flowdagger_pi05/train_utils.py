@@ -11,6 +11,8 @@ Trimmed to the MetaWorld code path:
 
 import logging
 import os
+import shutil
+import tempfile
 import threading
 
 import numpy as np
@@ -902,6 +904,9 @@ def perform_control_eval(agent, env, i, variant, wandb_logger, agent_dp=None,
     highest_rewards = []
     success_rates = []
     episode_lens = []
+    video_limit = int(variant.get('eval_video_episodes', -1))
+    save_video = bool(variant.get('save_eval_video', 1))
+    video_fps = int(variant.get('eval_video_fps', 30))
 
     # Save and replace the agent RNG so eval is deterministic.
     saved_agent_rng = agent._rng
@@ -917,12 +922,18 @@ def perform_control_eval(agent, env, i, variant, wandb_logger, agent_dp=None,
         image_list = []
         rewards = []
         eval_action_log = []
+        capture_video = save_video and (video_limit < 0 or rollout_id < video_limit)
 
         eval_encoder_type = variant.train_kwargs.get('encoder_type', 'small')
         eval_use_precomputed = (eval_encoder_type in _PRECOMPUTED_ENCODER_TYPES)
 
         for t in tqdm(range(max_timesteps)):
             curr_image = obs_to_img(obs, variant)
+            if capture_video:
+                if hasattr(env, 'render_video'):
+                    image_list.append(env.render_video())
+                else:
+                    image_list.append(np.asarray(obs["image"], dtype=np.uint8))
 
             if t % query_frequency == 0:
                 qpos = obs_to_qpos(obs, variant)
@@ -998,7 +1009,6 @@ def perform_control_eval(agent, env, i, variant, wandb_logger, agent_dp=None,
             obs, reward, done, _ = env.step(a4)
 
             rewards.append(reward)
-            image_list.append(curr_image)
             if _eval_skip_episode.is_set():
                 _eval_skip_episode.clear()
                 print(f"  [Eval] 's'-skipped rollout {rollout_id} at step {t}")
@@ -1024,11 +1034,18 @@ def perform_control_eval(agent, env, i, variant, wandb_logger, agent_dp=None,
         success_rates.append(is_success)
         print(f'Rollout {rollout_id} : {episode_return=}, Success: {is_success}')
 
-        if not variant.get('save_eval_video', 1):
+        if not capture_video:
             continue
         video_frames = np.stack(image_list)  # (T, H, W, C)
         video = video_frames.transpose(0, 3, 1, 2)  # (T, C, H, W)
-        wandb_logger.log({f'eval_video/{rollout_id}': wandb.Video(video, fps=50)}, step=i)
+        wandb_logger.log(
+            {
+                f'eval_video/{rollout_id}': wandb.Video(
+                    video, fps=video_fps, format='mp4'
+                )
+            },
+            step=i,
+        )
 
         if hasattr(variant, 'outputdir') and variant.outputdir:
             video_dir = os.path.join(variant.outputdir, 'videos')
@@ -1038,12 +1055,22 @@ def perform_control_eval(agent, env, i, variant, wandb_logger, agent_dp=None,
             )
             frames = video.transpose(0, 2, 3, 1)  # (T, H, W, C)
             h, w = frames.shape[1], frames.shape[2]
-            writer = cv2.VideoWriter(
-                video_path, cv2.VideoWriter_fourcc(*'mp4v'), 50, (w, h)
-            )
-            for frame in frames:
-                writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-            writer.release()
+            temporary = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False)
+            temporary_path = temporary.name
+            temporary.close()
+            try:
+                writer = cv2.VideoWriter(
+                    temporary_path, cv2.VideoWriter_fourcc(*'mp4v'), video_fps, (w, h)
+                )
+                if not writer.isOpened():
+                    raise RuntimeError(f'Failed to open MP4 writer for {video_path}')
+                for frame in frames:
+                    writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+                writer.release()
+                shutil.copy2(temporary_path, video_path)
+            finally:
+                if os.path.exists(temporary_path):
+                    os.unlink(temporary_path)
             print(f'  Saved video: {video_path}')
 
     success_rate = np.mean(np.array(success_rates))
@@ -1074,6 +1101,7 @@ def perform_control_eval(agent, env, i, variant, wandb_logger, agent_dp=None,
             'avg_episode_len': float(avg_episode_len),
             'prefix': getattr(variant, 'prefix', ''),
             'seed': getattr(variant, 'seed', None),
+            'task_key': getattr(variant, 'task_key', None),
             'launch_group_id': getattr(variant, 'launch_group_id', ''),
         }
         with open(results_path, 'a') as f:

@@ -37,6 +37,10 @@ class MetaworldPi05Adapter:
         seed: int = 0,
         camera_name: str = "corner3",
         resolution: int = 256,
+        video_camera_name: str = "corner",
+        video_width: int = 640,
+        video_height: int = 480,
+        video_rotate_180: bool = True,
     ):
         import metaworld
 
@@ -44,6 +48,11 @@ class MetaworldPi05Adapter:
         self._seed = seed
         self._camera_name = camera_name
         self._resolution = resolution
+        self._video_camera_name = video_camera_name
+        self._video_width = video_width
+        self._video_height = video_height
+        self._video_rotate_180 = video_rotate_180
+        self._video_renderer = None
 
         base_cls = metaworld.ALL_V3_ENVIRONMENTS[env_name]
         self.raw_env = base_cls(
@@ -51,6 +60,12 @@ class MetaworldPi05Adapter:
             width=resolution,
             height=resolution,
             camera_name=camera_name,
+        )
+        self.raw_env.model.vis.global_.offwidth = max(
+            self.raw_env.model.vis.global_.offwidth, video_width
+        )
+        self.raw_env.model.vis.global_.offheight = max(
+            self.raw_env.model.vis.global_.offheight, video_height
         )
         self.raw_env._partially_observable = False
         self.raw_env._freeze_rand_vec = False
@@ -114,7 +129,29 @@ class MetaworldPi05Adapter:
     def render(self, *_args, **_kwargs):
         return self.raw_env.render()
 
+    def render_video(self) -> np.ndarray:
+        """Render a human-facing frame without changing the policy observation."""
+        if self._video_renderer is None:
+            import mujoco
+
+            self._video_renderer = mujoco.Renderer(
+                self.raw_env.model,
+                height=self._video_height,
+                width=self._video_width,
+            )
+        self._video_renderer.update_scene(
+            self.raw_env.data,
+            camera=self._video_camera_name,
+        )
+        frame = np.asarray(self._video_renderer.render(), dtype=np.uint8)
+        if self._video_rotate_180:
+            frame = frame[::-1, ::-1]
+        return np.ascontiguousarray(frame)
+
     def close(self):
+        if self._video_renderer is not None:
+            self._video_renderer.close()
+            self._video_renderer = None
         return self.raw_env.close()
 
     # -- helpers ------------------------------------------------------

@@ -80,6 +80,7 @@ def create_stats_ordered_dict(
 class WandBLogger(object):
     def __init__(self, wandb_logging, variant, project, experiment_id, output_dir=None, group_name='', team=None):
         self.wandb_logging = wandb_logging
+        self.run_url = None
         output_dir = os.path.join(output_dir, experiment_id)
         os.makedirs(output_dir, exist_ok=True)
         if wandb_logging:
@@ -91,7 +92,7 @@ class WandBLogger(object):
             # (WANDB_API_KEY, etc.); team/entity is passed in explicitly.
             if "WANDB_MODE" not in os.environ:
                 os.environ["WANDB_MODE"] = "run"
-            wandb.init(
+            run = wandb.init(
                 config=variant,
                 project=project,
                 dir=output_dir,
@@ -100,6 +101,7 @@ class WandBLogger(object):
                 group=group_name,
                 entity=team
             )
+            self.run_url = getattr(run, "url", None)
             wandb.define_metric("num_online_trajs")
             wandb.define_metric("env_steps")
             self.output_dir = output_dir
@@ -107,6 +109,10 @@ class WandBLogger(object):
     def log(self, *args, **kwargs):
         if self.wandb_logging:
             wandb.log(*args, **kwargs)
+
+    def finish(self):
+        if self.wandb_logging:
+            wandb.finish()
 
     def log_histogram(self, name, values, step):
         fig = plt.figure()
